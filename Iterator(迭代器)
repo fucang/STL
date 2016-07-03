@@ -1,0 +1,137 @@
+#pragma once
+#ifndef __ITERATOR_H__
+#define __ITERATOR_H__
+
+#include <cstddef>
+
+/*为了让不同的迭代器可以调用同一个函数*/
+
+//迭代器的五种型别
+struct InputIteratorTag{};//只读迭代器
+struct OutputIteratorTag{};//只写迭代器，一般不用
+struct ForwardIteratorTag :public InputIteratorTag{};//前向迭代器
+struct BidirectionalIteratorTag :public ForwardIteratorTag{};//双向迭代器
+struct RandomAccessIteratorTag :public BidirectionalIteratorTag{};//随机迭代器，用于vector
+
+/*
+*迭代器内嵌包含的种相应的型别
+*IteratorCategory ValueType DifferenceType Pointer Reference
+*这种内嵌的型别的定义，确保了能够更方便的跟STL融合
+*且方便Iterator Traits的类型萃取
+*/
+
+template <class Category, class T, class Distance = ptrdiff_t,
+class Pointer = T*, class Reference = T&>
+class Iterator
+{
+	typedef Category IteratorCategory;//迭代器的类型
+	typedef T ValueType;//迭代器所指类型的型别
+	typedef Distance DifferenceType;//两个迭代器之间的距离
+	typedef Pointer Pointer;//迭代器所指对象类型的指针
+	typedef Reference Reference;//迭代器所指对象类型的引用
+};
+
+/*Traits就像一台萃取剂，榨取各个迭代器的特性（相应型别）*/
+template <class I> //I是一种迭代器
+struct IteratorTraits
+{
+	/*
+	*ValueType指迭代器所指对象的型别
+	*
+	*DifferenceType用来表示两个迭代器之间的距离，因此也用来表示一个迭代器的最大容量
+	*
+	*函数如果要传回左值，就必须使用Reference，因为如果要返回一个左值，必须返回T&或const T&，
+	*而不是T或T&
+	*
+	*Pointer指向迭代器所指之物
+	*
+	*IteratorCategory迭代器的分类
+	*/
+	typedef typename I::IteratorCategory IteratorCategory;
+	typedef typename I::ValueType ValueType; //告诉编译器I::ValueType是一个类型
+	typedef typename I::DifferenceType DifferenceType;
+	typedef typename I::Pointer Pointer;
+	typedef typename I::Reference Reference;
+
+};
+
+//偏特化
+template <class T>
+struct IteratorTraits<T*>
+{
+	//这里I相当于T*，而T*不是一个类，不能就行T*::，所以要进行偏特化
+	typedef typename RandomAccessIteratorTag IteratorCategory;
+	typedef typename T ValueType; 
+
+	//针对difference type，traits以C++内建的ptrdiff_t（定义于<cstddef>头文件）作为原生指针的difference type
+	//ptrdiff_t类型变量用来保存两个指针相减的结果
+	typedef typename ptrdiff_t DifferenceType;
+
+	typedef typename T* Pointer;
+	typedef typename T& Reference;
+};
+
+template <class T>
+struct IteratorTraits<const T*>
+{
+	//这里I相当于T*，而T*不是一个类，不能就行T*::，所以要进行偏特化
+	typedef typename RandomAccessIteratorTag IteratorCategory;
+	typedef typename const T ValueType;
+	typedef typename ptrdiff_t DifferenceType;
+	typedef typename const T* Pointer;
+	typedef typename const T& Reference;
+};
+
+template <class InputIterator>
+inline typename IteratorTraits<InputIterator>::DifferenceType __Distance(InputIterator first, InputIterator last, InputIteratorTag)
+{
+	size_t count = 0;
+	while (first != last)
+	{
+		++count;
+		++first;
+	}
+	return count;
+}
+
+template <class InputIterator>
+inline typename IteratorTraits<InputIterator>::DifferenceType __Distance(InputIterator first, InputIterator last, RandomAccessIteratorTag)
+{
+	return last - first;
+}
+
+template <class InputIterator>
+inline typename IteratorTraits<InputIterator>::DifferenceType Distance(InputIterator first, InputIterator last)
+{
+	return __Distance(first, last, IteratorTraits<InputIterator>::IteratorCategory());
+}
+
+//InputIterator == T*时：
+//IteratorTraits<InputIterator>::IteratorCategory == IteratorTraits<T*>::IteratorCategory == RandomAccessIteratorTag
+//InputIterator == __ListIterator时：
+//IteratorTraits<InputIterator>::IteratorCategory == IteratorTraits<__ListIterator>::IteratorCategory
+//	== IteratorTraits<Iterator>::IteratorCategory  
+//	== IteratorTraits<IteratorCategory>::IteratorCategory 
+//  == BidirectionalIteratorTag
+
+
+template <class Iterator>
+inline typename IteratorTraits<Iterator>::IteratorCategory IteratorCategory(const Iterator&)
+{
+	return IteratorTraits<Iterator>::IteratorCategory();
+}
+
+template <class Iterator>
+inline typename IteratorTraits<Iterator>::ValueType* ValueType(const Iterator&)
+{
+	return static_cast<typename IteratorTraits<Iterator>::ValueType*>(0);
+}
+
+template <class Iterator>
+inline typename IteratorTraits<Iterator>::DifferenceType* DistanceType(const Iterator&) {
+	return static_cast<typename IteratorTraits<Iterator>::DifferenceType*>(0);
+}
+
+
+
+#endif/*__ITERATOR_H__*/
