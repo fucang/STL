@@ -39,22 +39,22 @@ inline void Destory(ForwardIterator first, ForwardIterator last)
 	__Destory(first, last, ValueType(first));
 }
 
-//ForwardIterator迭代器的类型，Y迭代器所指对象的类型
+//ForwardIterator迭代器的类型，T迭代器所指对象的类型
 template <class ForwardIterator, class T>
 inline void __Destory(ForwardIterator first, ForwardIterator last, T*)
 {
 	typedef typename __TypeTraits<T>::HasTrivialDestructor HasTrivialDestructor;
-
+	__DestoryAux(first, last, HasTrivialDestructor());
 }
 
 template <class ForwardIterator>
-inline void __Destory(ForwardIterator first, ForwardIterator last, __TrueType)
+inline void __DestoryAux(ForwardIterator first, ForwardIterator last, __TrueType)
 {
 	//内置类型，析构函数什么都不用做
 }
 
 template <class ForwardIterator>
-inline void __Destory(ForwardIterator first, ForwardIterator last, __FalseType)
+inline void __DestoryAux(ForwardIterator first, ForwardIterator last, __FalseType)
 {
 	//自定义类型，为每个对象调用析构函数
 	for (; first < last; ++first)
